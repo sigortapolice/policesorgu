@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="tr">
 <head>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Poliçe Sorgu">
+  <link rel="apple-touch-icon" href="icon-512.png">
+
+  <link rel="manifest" href="manifest.json">
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Sigorta Poliçesi — Nihai Tasarım v7 (Aylık Tablo + 10 Yıl Projeksiyon)</title>
@@ -353,6 +359,14 @@ input:focus {
   const debounced=debounce(computeAndRender,300);
   inputs.forEach(id=>document.getElementById(id).addEventListener('input',debounced));
   window.onload=()=>updateRateAndShow(true);
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(() => console.log('Service Worker registered successfully.'))
+      .catch(e => console.log('Service Worker registration failed:', e));
+  }
 </script>
 </body>
 </html>
