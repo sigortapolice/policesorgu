@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sigorta Poliçesi — Nihai Tasarım v7 (Aylık Tablo + 10 Yıl Projeksiyon)</title>
+<style>
+  :root{
+    --bg:#f7f9fc; --card:#fff; --muted:#64748b; --accent:#eef2ff; --primary:#5b7cff;
+    --shadow:0 8px 24px rgba(16,24,40,0.06);
+  }
+  body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:#0f1724;display:flex;justify-content:center;padding:14px;}
+  .card{width:100%;max-width:480px;background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:10px;}
+  h2{text-align:center;margin:0 0 6px;font-size:18px;color:#334155;font-weight:600;}
+  .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:12px;}
+  .rate{background:var(--accent);border-radius:10px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;font-weight:500;color:#334155;margin-bottom:12px;font-size:14px;}
+  .refresh{cursor:pointer;color:var(--primary);font-size:16px;transition:transform .18s ease;}
+  .refresh:hover{transform:rotate(-90deg);}
+  label{display:block;margin-top:10px;font-size:13px;color:#475569;font-weight:500;}
+  input[type=number],input[type=text]{width:100%;padding:8px;margin-top:5px;border-radius:8px;border:1px solid #e6eef6;background:#fbfdff;font-size:14px;box-sizing:border-box;color:#6f737b;}
+  .two-col{display:flex;gap:8px;margin-top:5px;}
+  .two-col>div{flex:1;}
+  .buttons{display:flex;gap:8px;margin-top:14px;}
+  .btn-primary{flex:1;background:var(--primary);color:#fff;border:none;padding:9px;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 6px 18px rgba(91,124,255,0.14);}
+  .btn-reset{flex:1;background:#f1f5f9;color:#475569;border:none;padding:9px;border-radius:8px;cursor:pointer;}
+  .results{display:none;background:#f8fafc;border-radius:10px;padding:2px;margin-top:14px;font-size:14px;color:#334155;}
+  .summary{background:#fff;border-radius:8px;padding:10px;margin-left:0;margin-right:0;width:100%;box-sizing:border-box;border:1px solid #eef4ff;}
+  .result-line{display:flex;justify-content:space-between;margin:4px 0;}
+  .note{margin-top:10px;font-size:12px;color:#94a3b8;text-align:center;}
+  .muted{color:var(--muted);font-size:13px;white-space:pre-line;}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:none ;border:1px solid #eef4ff;}
+  th,td{padding:6px 4px;text-align:right;border-bottom:0px solid #e2e8f0;}
+  th{text-align:center;color:#475569;background:#f1f5f9;font-weight:600;}
+  tr.total-row{font-weight:600;background:#f9fafb;}
+  td:first-child,th:first-child{text-align:left;}
+  @media(max-width:460px){ th,td{font-size:12px;} }
+input:focus {
+  outline: none;
+  border-color: #94a3b8; /* açık gri */
+  box-shadow: 0 0 0 0px #e2e8f0; /* hafif gri vurgulu */
+}
+</style>
+</head>
+<body>
+  <div class="card" role="region" aria-label="Sigorta Poliçesi Simülatörü — Nihai Tasarım v7">
+    <h2>Poliçe Robotu</h2>
+    <div class="sub">Aylık detaylar: brüt maaş, vergi dilimi, prim, iade ve yıl toplamları. Ayrıca 10 yıllık dinamik projeksiyon eklendi. Sadece aylık brüt maaş ve aylık ödenen prim hücrelerini değiştirmeniz yeterlidir. Kur otomatik olarak çekilmektedir. </div>
+
+    <div class="rate" id="rateBox">
+      <div id="rateText">Kur çekiliyor...</div>
+      <div class="refresh" id="refreshBtn" title="Kur yenile">↻</div>
+    </div>
+
+    <label for="monthlySalary">Aylık Brüt Maaş (₺)</label>
+    <input id="monthlySalary" type="number" value="130000" min="0"/>
+
+    <label for="monthlyPremiumUsd">Aylık Ödenen Prim (USD)</label>
+    <input id="monthlyPremiumUsd" type="number" value="100" min="0" step="0.01"/>
+
+    <div class="two-col">
+      <div>
+        <label for="annualPremiumGrowth">Yıllık Prim Artışı (%)</label>
+        <input id="annualPremiumGrowth" type="number" value="5" min="0" step="0.01"/>
+      </div>
+      <div>
+        <label for="usdTry">USD/TRY (kullanılan)</label>
+        <input id="usdTry" type="number" step="0.0001" placeholder="Boşsa otomatik çekilecek"/>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <label for="annualProfitRate">Başlangıç Yıllık Kâr Payı (%)</label>
+        <input id="annualProfitRate" type="number" value="6.24" min="0" step="0.01"/>
+      </div>
+      <div>
+        <label for="annualExpenseRate">Yıllık Gider Kesintisi (%)</label>
+        <input id="annualExpenseRate" type="number" value="5" min="0" step="0.01"/>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="calcBtn" class="btn-primary">Hesapla</button>
+      <button id="resetBtn" class="btn-reset">↻ Sıfırla</button>
+    </div>
+
+    <div id="results" class="results" aria-live="polite"></div>
+
+    <div class="note">Kur kaynağı: exchangerate.host — başarısızsa fallback (41.95) otomatik kullanılır.</div>
+  </div>
+
+<script>
+  const TAX_BRACKETS = [
+    { upTo: 110000, rate: 0.15 },
+    { upTo: 230000, rate: 0.20 },
+    { upTo: 580000, rate: 0.27 },
+    { upTo: 3000000, rate: 0.35 },
+    { upTo: Infinity, rate: 0.40 }
+  ];
+
+  const fmtTL = n => (Math.round(n)).toLocaleString('tr-TR') + ' ₺';
+  const fmtUSD = n => (Math.round(n)).toLocaleString('en-US') + ' $';
+  const months = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+
+  async function safeFetchUsdTry(){
+    const FALLBACK = 41.95;
+    try{
+      const res = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=TRY',{cache:"no-store"});
+      const j = await res.json();
+      const rate = j?.rates?.TRY;
+      if(typeof rate === 'number') return { rate, source: 'live' };
+      throw new Error();
+    }catch{ return { rate: FALLBACK, source: 'fallback' }; }
+  }
+
+  function getTaxRateForAnnualIncome(annualIncome){
+    for(const b of TAX_BRACKETS) if(annualIncome <= b.upTo) return b.rate;
+    return 0.40;
+  }
+
+  function debounce(fn, wait){ let t; return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),wait);} }
+
+  // 10 yıllık projeksiyon hesaplama
+  // Varsayımlar: salaryGrowth= %15, usdGrowth= %15, profitGrowth= %5 (her yıl kâr payı oranı artar)
+  function compute10YearProjection(params){
+    const years = 10;
+    const salaryGrowth = 0.15;
+    const usdGrowth = 0.15;
+    const profitGrowth = 0.05;
+
+    let {
+      monthlySalary, // TL
+      monthlyPremiumUsd, // USD
+      usdTryBase, // current usd rate (used for year1)
+      expenseRatePct, // %
+      profitRatePct, // starting % (will grow each year)
+      premiumGrowthPct // % (annual)
+    } = params;
+
+    // convert percentages to decimals
+    const expenseRate = expenseRatePct/100;
+    const premiumGrowth = premiumGrowthPct/100;
+    let profitRate = profitRatePct/100;
+
+    // accumulators (USD and TL)
+    let totalPremiumUsd = 0;
+    let totalRebateUsd = 0;
+    let totalExpenseUsd = 0;
+    let totalProfitUsd = 0;
+    let accumulatedWithoutRebateUsd = 0; // netPrim + profit (excl. rebate)
+    let accumulatedWithRebateUsd = 0; // includes rebate
+    // also store TL equivalents per year using per-year USD/TRY
+    for(let y=1;y<=years;y++){
+      // year-specific multipliers (year 1 -> pow 0)
+      const yearSalary = monthlySalary * 12 * Math.pow(1 + salaryGrowth, y-1); // annual salary TL
+      const yearUsdRate = usdTryBase * Math.pow(1 + usdGrowth, y-1); // USD/TRY for this year
+      const yearMonthlyPremiumUsd = monthlyPremiumUsd * Math.pow(1 + premiumGrowth, y-1);
+      const yearAnnualPremiumUsd = yearMonthlyPremiumUsd * 12;
+
+      // tax rate based on annual salary
+      const taxRate = getTaxRateForAnnualIncome(yearSalary);
+
+      // rebate (USD) for the year = annual premium * taxRate
+      const rebateUsd = yearAnnualPremiumUsd * taxRate;
+
+      // expense (USD)
+      const expenseUsd = yearAnnualPremiumUsd * expenseRate;
+
+      // net premium after expense (USD)
+      const netPrimUsd = yearAnnualPremiumUsd - expenseUsd;
+
+      // profit for this year (USD) using current profitRate
+      const profitUsd = netPrimUsd * profitRate;
+
+      // accumulate
+      totalPremiumUsd += yearAnnualPremiumUsd;
+      totalRebateUsd += rebateUsd;
+      totalExpenseUsd += expenseUsd;
+      totalProfitUsd += profitUsd;
+      accumulatedWithoutRebateUsd += (netPrimUsd + profitUsd); // birikim (vergi iadesi hariç)
+      accumulatedWithRebateUsd += (netPrimUsd + profitUsd + rebateUsd); // birikim + vergi iadesi
+
+      // grow profitRate for next year
+      profitRate = profitRate * (1 + profitGrowth);
+    }
+
+    // convert final USD totals to TL using growing USD/TRY: to be consistent with per-year conversion, compute weighted sum:
+    // We'll recompute per-year TL sums to be precise.
+    let totalPremiumTl = 0, totalRebateTl = 0, totalExpenseTl = 0, totalProfitTl = 0, accWithoutRebateTl = 0, accWithRebateTl = 0;
+    profitRate = profitRatePct/100; // reset to start to recompute per year conversion
+    for(let y=1;y<=years;y++){
+      const yearSalary = monthlySalary * 12 * Math.pow(1 + 0.15, y-1);
+      const yearUsdRate = usdTryBase * Math.pow(1 + 0.15, y-1);
+      const yearMonthlyPremiumUsd = monthlyPremiumUsd * Math.pow(1 + premiumGrowth, y-1);
+      const yearAnnualPremiumUsd = yearMonthlyPremiumUsd * 12;
+      const taxRate = getTaxRateForAnnualIncome(yearSalary);
+      const rebateUsd = yearAnnualPremiumUsd * taxRate;
+      const expenseUsd = yearAnnualPremiumUsd * (expenseRatePct/100);
+      const netPrimUsd = yearAnnualPremiumUsd - expenseUsd;
+      const profitUsd = netPrimUsd * profitRate;
+
+      totalPremiumTl += yearAnnualPremiumUsd * yearUsdRate;
+      totalRebateTl += rebateUsd * yearUsdRate;
+      totalExpenseTl += expenseUsd * yearUsdRate;
+      totalProfitTl += profitUsd * yearUsdRate;
+      accWithoutRebateTl += (netPrimUsd + profitUsd) * yearUsdRate;
+      accWithRebateTl += (netPrimUsd + profitUsd + rebateUsd) * yearUsdRate;
+
+      profitRate = profitRate * (1 + profitGrowth);
+    }
+
+    // net kazanç: (toplam kâr payı - toplam gider kesintisi) TL
+    const netGainTl = totalProfitTl - totalExpenseTl; // not including rebates
+    // toplam birikim miktarı = birikim (vergi iadesi hariç) => accWithoutRebateTl
+    // toplam kazanım (vergi iadesi dahil) = accWithRebateTl
+
+    return {
+      totalPremiumUsd, totalRebateUsd, totalExpenseUsd, totalProfitUsd,
+      accumulatedWithoutRebateUsd, accumulatedWithRebateUsd,
+      totalPremiumTl, totalRebateTl, totalExpenseTl, totalProfitTl,
+      accWithoutRebateTl, accWithRebateTl, netGainTl
+    };
+  }
+
+  async function updateRateAndShow(autoCompute=false){
+    const rt = document.getElementById('rateText');
+    rt.textContent = 'Kur çekiliyor...';
+    const { rate, source } = await safeFetchUsdTry();
+    const usdInput = document.getElementById('usdTry');
+    if(!usdInput.value) usdInput.value = rate.toFixed(4);
+    rt.textContent = `1 USD = ${rate.toFixed(4)} ₺` + (source==='fallback'?' (fallback)':'');
+    if(autoCompute) computeAndRender();
+  }
+
+  function computeAndRender(){
+    const salary = +document.getElementById('monthlySalary').value || 0;
+    const premiumUsd = +document.getElementById('monthlyPremiumUsd').value || 0;
+    const usdTry = +document.getElementById('usdTry').value || 0;
+    const expenseRate = +document.getElementById('annualExpenseRate').value || 0;
+    const profitRate = +document.getElementById('annualProfitRate').value || 0;
+    const premiumGrowth = +document.getElementById('annualPremiumGrowth').value || 0;
+
+    if(!salary || !premiumUsd || !usdTry) return;
+
+    // ---------- 1 yıl hesapları (mevcut) ----------
+    let totalSalary=0,totalPremUsd=0,totalRebateUsd=0;
+    let tableRows="";
+
+    for(let i=1;i<=12;i++){
+      const monthName=months[i-1];
+      const cumIncome=salary*i;
+      const taxRate=getTaxRateForAnnualIncome(cumIncome);
+      const rebateUsd=premiumUsd*taxRate;
+
+      totalSalary+=salary;
+      totalPremUsd+=premiumUsd;
+      totalRebateUsd+=rebateUsd;
+
+      tableRows+=`
+        <tr>
+          <td>${monthName}</td>
+          <td>${fmtTL(salary)}</td>
+          <td>${(taxRate*100).toFixed(0)}%</td>
+          <td>${fmtUSD(premiumUsd)}</td>
+          <td>${fmtUSD(rebateUsd)}</td>
+        </tr>`;
+    }
+
+    tableRows+=`
+      <tr class="total-row">
+        <td>Yıllık Toplam</td>
+        <td>${fmtTL(totalSalary)}</td>
+        <td>-</td>
+        <td>${fmtUSD(totalPremUsd)}</td>
+        <td>${fmtUSD(totalRebateUsd)}</td>
+      </tr>`;
+
+    const tableHTML=`
+      <div class="summary">
+        <table>
+          <thead>
+            <tr><th>Ay</th><th>Brüt Maaş (TL)</th><th>Vergi Dilimi</th><th>Prim ($)</th><th>İade ($)</th></tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>`;
+
+    const yearlyUsd=premiumUsd*12;
+    const yearlyTl=yearlyUsd*usdTry;
+    const yearlyExpenseUsd=yearlyUsd*(expenseRate/100);
+    const yearlyExpenseTl=yearlyExpenseUsd*usdTry;
+    const netPrimUsd=yearlyUsd-yearlyExpenseUsd;
+    const yearlyProfitUsd=netPrimUsd*(profitRate/100);
+    const yearlyProfitTl=yearlyProfitUsd*usdTry;
+    const yearEndUsd=netPrimUsd+yearlyProfitUsd+totalRebateUsd;
+    const yearEndTl=yearEndUsd*usdTry;
+
+    // ---------- 10 yıl projeksiyonu (dinamik) ----------
+    const proj = compute10YearProjection({
+      monthlySalary: salary,
+      monthlyPremiumUsd: premiumUsd,
+      usdTryBase: usdTry,
+      expenseRatePct: expenseRate,
+      profitRatePct: profitRate,
+      premiumGrowthPct: premiumGrowth
+    });
+
+    const summaryText = `
+      <div class="summary">
+        <div style="display:grid;grid-template-columns:1fr auto;row-gap:4px;column-gap:8px;font-size:12px;color:#334155;">
+          <div>Aylık ödenen prim (USD)</div><div>${fmtUSD(premiumUsd)}</div>
+          <div>Aylık ödenen prim (TL)</div><div>${fmtTL(premiumUsd * usdTry)}</div>
+          <div>Yıllık ödenen prim (USD)</div><div>${fmtUSD(yearlyUsd)}</div>
+          <div>Yıllık ödenen prim (TL)</div><div>${fmtTL(yearlyTl)}</div>
+          <div>Yıllık vergi iadesi (USD)</div><div>${fmtUSD(totalRebateUsd)}</div>
+          <div>Yıllık vergi iadesi (TL)</div><div>${fmtTL(totalRebateUsd * usdTry)}</div>
+          <div>Yıllık kâr payı (USD)</div><div>${fmtUSD(yearlyProfitUsd)}</div>
+          <div>Yıllık kâr payı (TL)</div><div>${fmtTL(yearlyProfitTl)}</div>
+          <div>Yıllık gider kesintisi (USD)</div><div>${fmtUSD(yearlyExpenseUsd)}</div>
+          <div>Yıllık gider kesintisi (TL)</div><div>${fmtTL(yearlyExpenseTl)}</div>
+          <div>Yıl sonu birikimi (USD)</div><div>${fmtUSD(yearEndUsd)}</div>
+          <div>Yıl sonu birikimi (TL)</div><div>${fmtTL(yearEndTl)}</div>
+        </div>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:10px 0;">
+        <div class="muted"> İlk yıl yıl toplam ödemeleriniz: ${fmtTL(yearlyTl)}, toplam vergi iadeniz: ${fmtUSD(totalRebateUsd)} (${fmtTL(totalRebateUsd*usdTry)}). Gider kesintiniz ${fmtTL(yearlyExpenseTl)}, kâr payınız ${fmtTL(yearlyProfitTl)}. Vergi iadesi dahil yıl sonu birikiminizin: <strong>${fmtTL(yearEndTl)}</strong> olabileceği öngörülmektedir.
+          <hr style="border:none;border-top:1px dashed #cbd5e1;margin:10px 0;"> Eğer poliçede 10 yılı doldurursanız; Brüt maaşınız her yıl ortalama %15 artar, döviz kuru yıllık %15 artışla ilerlerse, kâr payında yıllık %5 büyüme ve prim ödemenizde yıllık ${premiumGrowth}% artış varsayarsak (gider kesintisi sabit kabul edilmiştir) ve vergi dilimi değişimleri maaş artışına bağlı olarak oluşursa, potansiyel sonuçlar şu şekilde olabilir:
+          <hr style="border:none;border-top:1px dashed #cbd5e1;margin:10px 0;"> 10 yıl sonunda ödediğiniz toplam prim tutarı: ${fmtTL(proj.totalPremiumTl)}, 10 yıl içinde aldığınız vergi iadesi: ${fmtTL(proj.totalRebateTl)}, 10 yıl sonunda kâr payı eklenip gider payı düşüldükten sonra net kazanç: ${fmtTL(proj.netGainTl)}, toplam birikim miktarınız: ${fmtTL(proj.accWithoutRebateTl)}, toplam kazanımınız (vergi iadesi dahil): <strong>${fmtTL(proj.accWithRebateTl)}.
+          <hr style="border:none;border-top:1px dashed #cbd5e1;margin:10px 0;"> Not: Veriler resmi veri değildir; biriminize istinaden projeksiyon amaçlı hesaplanmaktadır.
+        </div>
+      </div>`;
+
+    const results=document.getElementById('results');
+    results.style.display='block';
+    results.innerHTML=tableHTML+summaryText;
+  }
+
+  document.getElementById('calcBtn').onclick=computeAndRender;
+  document.getElementById('resetBtn').onclick=async()=>{
+    document.getElementById('monthlySalary').value=130000;
+    document.getElementById('monthlyPremiumUsd').value=100;
+    document.getElementById('annualPremiumGrowth').value=5;
+    document.getElementById('annualProfitRate').value=6.24;
+    document.getElementById('annualExpenseRate').value=5;
+    document.getElementById('results').style.display='none';
+    document.getElementById('usdTry').value='';
+    const {rate,source}=await safeFetchUsdTry();
+    document.getElementById('usdTry').value=rate.toFixed(4);
+    document.getElementById('rateText').textContent=`1 USD = ${rate.toFixed(4)} ₺`+(source==='fallback'?' (fallback)':'');
+    computeAndRender();
+  };
+  document.getElementById('refreshBtn').onclick=()=>updateRateAndShow(true);
+  const inputs=['monthlySalary','monthlyPremiumUsd','annualProfitRate','annualExpenseRate','usdTry','annualPremiumGrowth'];
+  const debounced=debounce(computeAndRender,300);
+  inputs.forEach(id=>document.getElementById(id).addEventListener('input',debounced));
+  window.onload=()=>updateRateAndShow(true);
+</script>
+</body>
+</html>
